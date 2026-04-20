@@ -1,10 +1,6 @@
 # backend/routers/crawl_admin.py
 # Crawler config management + crawl status SSE
-# Uses bipthelper DB via database.py, no service imports from bipthelper
-
-import sys
-from pathlib import Path
-sys.path.insert(0, "E:/code/bipthelper/backend")  # bipthelper backend for User model
+# bipthelper backend already in sys.path via main.py setup
 
 import asyncio
 import json

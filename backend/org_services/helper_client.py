@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 
 class HelperClient:
     def __init__(self):
-        from config import get_settings
+        from org_config import get_settings
         settings = get_settings()
         self.base_url = settings.BIPTHELPER_URL.rstrip("/")
         self.api_key = settings.ORGANIZER_API_KEY

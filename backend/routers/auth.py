@@ -1,33 +1,24 @@
 # backend/routers/auth.py
-# Self-contained auth: uses bipthelper's SQLite DB directly, no bipthelper services imported
+# Self-contained auth: uses bipthelper's SQLite DB directly
 
-import sys
 import jwt
 from datetime import datetime, timezone, timedelta
-from pathlib import Path
+from passlib.context import CryptContext
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Header
+from fastapi import APIRouter, Depends, HTTPException, Header
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.responses import JSONResponse
 from sqlmodel import Session, select
 
-# Use bipthelper's database (same SQLite file)
-sys.path.insert(0, "E:/code/bipthelper/backend")
 from database import get_session
-from config import get_settings
-
-sys.path.insert(0, "E:/code/bipthelper/backend")
+from org_config import get_settings
 from models.user import User
 
 router = APIRouter()
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def verify_password(plain: str, hashed: str) -> bool:
-    import hashlib
-    if ":" in hashed:
-        method, data = hashed.split(":", 1)
-        if method == "sha256":
-            return hashlib.sha256(plain.encode()).hexdigest() == data
-    return False
+    return pwd_context.verify(plain, hashed)
 
 def create_access_token(data: dict, expires_delta: timedelta = timedelta(days=7)):
     settings = get_settings()
@@ -39,11 +30,10 @@ def create_access_token(data: dict, expires_delta: timedelta = timedelta(days=7)
 
 @router.post("/login")
 def login(
-    request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
     session: Session = Depends(get_session),
 ):
-    """登录"""
+    """Login"""
     user = session.exec(select(User).where(User.username == form_data.username)).first()
     if not user or not verify_password(form_data.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Incorrect username or password")
@@ -64,11 +54,8 @@ def login(
 
 
 @router.get("/me")
-def get_me(
-    authorization: str = Header(None),
-    session: Session = Depends(get_session),
-):
-    """从 Authorization: Bearer <token> 获取当前用户"""
+def get_me(authorization: str = Header(None), session: Session = Depends(get_session)):
+    """From Authorization: Bearer <token> get current user"""
     if not authorization:
         raise HTTPException(status_code=401, detail="Not authenticated")
     try:
@@ -92,11 +79,8 @@ def logout():
     return response
 
 
-def get_current_admin(
-    authorization: str = Header(None),
-    session: Session = Depends(get_session),
-) -> User:
-    """Admin 权限检查"""
+def get_current_admin(authorization: str = Header(None), session: Session = Depends(get_session)) -> User:
+    """Admin permission check"""
     if not authorization:
         raise HTTPException(status_code=401, detail="Not authenticated")
     try:

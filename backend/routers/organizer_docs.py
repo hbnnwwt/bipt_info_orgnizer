@@ -1,11 +1,6 @@
 # backend/routers/organizer_docs.py
 # Proxies document operations to bipthelper via HelperClient
-# Uses bipthelper's database for local audit logs
-
-# Append bipthelper paths so local "services" is still found first
-import sys
-sys.path.append("E:/code/bipthelper/backend")
-sys.path.append("E:/code/bipthelper")
+# Uses local SQLite for audit logs
 
 from fastapi import APIRouter, Depends, HTTPException
 from typing import Optional
@@ -13,7 +8,7 @@ from pydantic import BaseModel
 from sqlmodel import Session, select, func
 
 from database import get_session
-from services.helper_client import HelperClient
+from org_services.helper_client import HelperClient
 
 router = APIRouter()
 _helper = None
