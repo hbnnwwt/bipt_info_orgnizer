@@ -1,6 +1,11 @@
+# backend/routers/organizer_docs.py
+# Proxies document operations to bipthelper via HelperClient
+# Uses bipthelper's database for local audit logs
+
+# Append bipthelper paths so local "services" is still found first
 import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))  # backend/ parent
+sys.path.append("E:/code/bipthelper/backend")
+sys.path.append("E:/code/bipthelper")
 
 from fastapi import APIRouter, Depends, HTTPException
 from typing import Optional
@@ -26,9 +31,7 @@ class BulkDeleteRequest(BaseModel):
 
 @router.get("/documents/categories")
 def get_categories():
-    client = get_helper()
-    resp = client.get_categories()
-    return resp
+    return get_helper().get_categories()
 
 
 @router.get("/documents")
@@ -41,7 +44,6 @@ def list_documents(
     ai_status: Optional[str] = None,
     sort: str = "updated_desc",
 ):
-    client = get_helper()
     params = {"page": page, "page_size": page_size, "sort": sort}
     if category:
         params["category"] = category
@@ -51,15 +53,12 @@ def list_documents(
         params["keyword"] = keyword
     if ai_status:
         params["ai_status"] = ai_status
-    resp = client.get_documents(params)
-    return resp
+    return get_helper().get_documents(params)
 
 
 @router.delete("/documents/{doc_id}")
 def delete_document(doc_id: str):
-    client = get_helper()
-    resp = client.delete_document(doc_id)
-    return resp
+    return get_helper().delete_document(doc_id)
 
 
 @router.post("/documents/batch-delete")
@@ -76,24 +75,13 @@ def batch_delete_documents(req: BulkDeleteRequest = None):
 
 
 @router.put("/documents/{doc_id}/category")
-def update_category(
-    doc_id: str,
-    category: str,
-    current_admin=None,  # auth handled at proxy level
-):
-    client = get_helper()
-    resp = client.update_document(doc_id, {"category": category})
-    return resp
+def update_category(doc_id: str, category: str, current_admin=None):
+    return get_helper().update_document(doc_id, {"category": category})
 
 
 @router.post("/documents/{doc_id}/approve")
-def approve_document(
-    doc_id: str,
-    categories: Optional[str] = None,
-):
-    client = get_helper()
-    resp = client.approve_document(doc_id, categories)
-    return resp
+def approve_document(doc_id: str, categories: Optional[str] = None):
+    return get_helper().approve_document(doc_id, categories)
 
 
 @router.get("/audit")
@@ -104,6 +92,7 @@ def list_audit_logs(
     session: Session = Depends(get_session),
 ):
     from models.audit_log import AuditLog as AL
+
     count_query = select(func.count()).select_from(AL)
     if action:
         count_query = count_query.where(AL.action == action)

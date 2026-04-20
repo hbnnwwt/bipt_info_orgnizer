@@ -1,17 +1,15 @@
-import os
-from sqlmodel import SQLModel, create_engine
+# backend/database.py
+# Delegates to bipthelper's database.py using absolute import path
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "organizer.db")
-os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+import importlib.util
 
-engine = create_engine(f"sqlite:///{DB_PATH}", echo=False)
+_spec = importlib.util.spec_from_file_location(
+    "bp_database",
+    "E:/code/bipthelper/backend/database.py",
+    submodule_search_locations=["E:/code/bipthelper/backend"]
+)
+bp_db = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(bp_db)
 
-def create_db_and_tables():
-    from models.crawl_config import CrawlConfig
-    from models.audit_log import AuditLog
-    SQLModel.metadata.create_all(engine)
-
-def get_session():
-    from sqlmodel import Session
-    with Session(engine) as session:
-        yield session
+get_session = bp_db.get_session
+create_db_and_tables = bp_db.create_db_and_tables

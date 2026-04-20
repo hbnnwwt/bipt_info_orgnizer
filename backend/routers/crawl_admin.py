@@ -1,14 +1,19 @@
+# backend/routers/crawl_admin.py
+# Crawler config management + crawl status SSE
+# Uses bipthelper DB via database.py, no service imports from bipthelper
+
 import sys
 from pathlib import Path
-# Reference bipthelper backend for shared models, auth, database
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))  # backend/ parent
+sys.path.insert(0, "E:/code/bipthelper/backend")  # bipthelper backend for User model
 
 import asyncio
 import json
 import threading
+import uuid
+from datetime import datetime, timezone
 from urllib.parse import urlparse
 
-from fastapi import APIRouter, Depends, HTTPException, Body
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from typing import Optional
 from pydantic import BaseModel
@@ -17,8 +22,7 @@ from sqlmodel import Session, select
 from database import get_session
 from models.crawl_config import CrawlConfig
 from models.user import User
-from services.auth import get_current_admin
-from services import log_store  # noqa - register log handler
+from routers.auth import get_current_admin
 
 router = APIRouter()
 
@@ -44,15 +48,7 @@ def _validate_url(url: str, field_name: str) -> bool:
         raise HTTPException(status_code=400, detail=f"{field_name}: URL 格式无效")
 
 
-# Crawl state (module-level globals)
-crawl_running = False
-crawl_stop_requested = False
-crawl_progress = {}
-
-
 def add_audit_log_local(user_id, username, action, target, detail, session):
-    import uuid
-    from datetime import datetime, timezone
     from models.audit_log import AuditLog
     log = AuditLog(
         id=str(uuid.uuid4()),
@@ -64,6 +60,12 @@ def add_audit_log_local(user_id, username, action, target, detail, session):
     )
     session.add(log)
     session.commit()
+
+
+# --- Crawl state ---
+crawl_running = False
+crawl_stop_requested = False
+crawl_progress = {}
 
 
 @router.get("/configs")
@@ -78,15 +80,15 @@ def list_configs(
                 "id": c.id,
                 "name": c.name,
                 "url": c.url,
-                "selector": c.selector,
+                "selector": c.selector or "body",
                 "category": c.category or "",
                 "parent_category": c.parent_category or "",
                 "sub_category": c.sub_category or "",
                 "is_list_page": c.is_list_page,
-                "article_selector": c.article_selector,
+                "article_selector": c.article_selector or "a",
                 "link_prefix": c.link_prefix or "",
-                "pagination_selector": c.pagination_selector,
-                "pagination_max": c.pagination_max,
+                "pagination_selector": c.pagination_selector or "",
+                "pagination_max": c.pagination_max or 0,
                 "enabled": c.enabled,
                 "last_crawl": c.last_crawl or "",
                 "initialized": c.initialized,
@@ -121,7 +123,6 @@ def create_config(
     if pagination_selector:
         _validate_selector(pagination_selector, "分页选择器")
 
-    import uuid
     config = CrawlConfig(
         id=str(uuid.uuid4()),
         name=name,
@@ -227,15 +228,9 @@ def delete_config(
     return {"message": "Config deleted"}
 
 
-# --- 爬虫控制 ---
-
 @router.get("/crawl/status")
 def get_crawl_status():
-    global crawl_running, crawl_stop_requested
-    return {
-        "running": crawl_running,
-        "stop_requested": crawl_stop_requested,
-    }
+    return {"running": crawl_running, "stop_requested": crawl_stop_requested}
 
 
 @router.get("/crawl/progress")
