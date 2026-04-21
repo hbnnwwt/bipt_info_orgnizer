@@ -1,75 +1,81 @@
 # backend/routers/auth.py
-# Self-contained auth: uses bipthelper's SQLite DB directly
+# Auth: delegates to bipthelper API for user data (avoids sys.path conflicts)
 
-import jwt
-from datetime import datetime, timezone, timedelta
-from passlib.context import CryptContext
-
+import httpx
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Header
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.responses import JSONResponse
-from sqlmodel import Session, select
 
-from database import get_session
 from org_config import get_settings
-from models.user import User
 
 router = APIRouter()
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
-
-def create_access_token(data: dict, expires_delta: timedelta = timedelta(days=7)):
-    settings = get_settings()
-    to_encode = data.copy()
-    expire = datetime.now(timezone.utc) + expires_delta
-    to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
 @router.post("/login")
-def login(
+async def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
-    session: Session = Depends(get_session),
 ):
-    """Login"""
-    user = session.exec(select(User).where(User.username == form_data.username)).first()
-    if not user or not verify_password(form_data.password, user.password_hash):
-        raise HTTPException(status_code=401, detail="Incorrect username or password")
-    if not user.is_active:
-        raise HTTPException(status_code=403, detail="User account is inactive")
+    """Login via bipthelper - returns JWT token"""
+    settings = get_settings()
+    try:
+        async with httpx.AsyncClient(base_url=settings.BIPTHELPER_URL, timeout=10.0) as client:
+            response = await client.post(
+                "/api/auth/login",
+                data={
+                    "username": form_data.username,
+                    "password": form_data.password,
+                },
+            )
+    except httpx.ConnectError:
+        raise HTTPException(status_code=503, detail="bipthelper service unavailable")
 
-    token = create_access_token(data={"sub": user.username})
+    if response.status_code == 401:
+        raise HTTPException(status_code=401, detail="Incorrect username or password")
+    if response.status_code == 403:
+        raise HTTPException(status_code=403, detail="User account is inactive")
+    if response.status_code != 200:
+        raise HTTPException(status_code=500, detail="Login failed")
+
+    data = response.json()
+    token = data["token"]
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    user = data["user"]
+
     response = JSONResponse({
-        "user": {"id": user.id, "username": user.username, "role": user.role},
+        "user": {"id": user["id"], "username": user["username"], "role": user["role"]},
         "token": token,
-        "points": user.points,
-        "last_checkin_date": user.last_checkin_date,
-        "checked_in_today": user.last_checkin_date == today,
+        "points": data.get("points"),
+        "last_checkin_date": data.get("last_checkin_date"),
+        "checked_in_today": data.get("last_checkin_date") == today,
     })
     response.set_cookie(key="access_token", value=token, httponly=True, max_age=7*24*60*60, samesite="lax")
     return response
 
 
 @router.get("/me")
-def get_me(authorization: str = Header(None), session: Session = Depends(get_session)):
-    """From Authorization: Bearer <token> get current user"""
+async def get_me(authorization: str = Header(None)):
+    """From Authorization: Bearer <token> get current user via bipthelper"""
     if not authorization:
         raise HTTPException(status_code=401, detail="Not authenticated")
-    try:
-        settings = get_settings()
-        token = authorization.replace("Bearer ", "")
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        username = payload.get("sub")
-    except jwt.PyJWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
 
-    user = session.exec(select(User).where(User.username == username)).first()
-    if not user:
-        raise HTTPException(status_code=401, detail="User not found")
-    return {"id": user.id, "username": user.username, "role": user.role, "points": user.points}
+    settings = get_settings()
+    token = authorization.replace("Bearer ", "")
+    try:
+        async with httpx.AsyncClient(base_url=settings.BIPTHELPER_URL, timeout=10.0) as client:
+            response = await client.get(
+                "/api/auth/me",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+    except httpx.ConnectError:
+        raise HTTPException(status_code=503, detail="bipthelper service unavailable")
+
+    if response.status_code == 401:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    if response.status_code != 200:
+        raise HTTPException(status_code=500, detail="Failed to get user")
+
+    return response.json()
 
 
 @router.post("/logout")
@@ -79,21 +85,34 @@ def logout():
     return response
 
 
-def get_current_admin(authorization: str = Header(None), session: Session = Depends(get_session)) -> User:
-    """Admin permission check"""
+async def _get_user_from_token(token: str):
+    """Call bipthelper /api/auth/me and return user dict or raise HTTPException"""
+    settings = get_settings()
+    try:
+        async with httpx.AsyncClient(base_url=settings.BIPTHELPER_URL, timeout=10.0) as client:
+            response = await client.get(
+                "/api/auth/me",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+    except httpx.ConnectError:
+        raise HTTPException(status_code=503, detail="bipthelper service unavailable")
+
+    if response.status_code == 401:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    if response.status_code != 200:
+        raise HTTPException(status_code=500, detail="Failed to verify user")
+
+    return response.json()
+
+
+async def get_current_admin(authorization: str = Header(None)):
+    """Admin permission check - calls bipthelper to verify role"""
     if not authorization:
         raise HTTPException(status_code=401, detail="Not authenticated")
-    try:
-        settings = get_settings()
-        token = authorization.replace("Bearer ", "")
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        username = payload.get("sub")
-    except jwt.PyJWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
 
-    user = session.exec(select(User).where(User.username == username)).first()
-    if not user or not user.is_active:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-    if user.role != "admin":
+    token = authorization.replace("Bearer ", "")
+    user = await _get_user_from_token(token)
+
+    if user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     return user

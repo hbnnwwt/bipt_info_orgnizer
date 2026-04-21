@@ -2,7 +2,7 @@
 # Proxies document operations to bipthelper via HelperClient
 # Uses local SQLite for audit logs
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from typing import Optional
 from pydantic import BaseModel
 from sqlmodel import Session, select, func
@@ -70,7 +70,7 @@ def batch_delete_documents(req: BulkDeleteRequest = None):
 
 
 @router.put("/documents/{doc_id}/category")
-def update_category(doc_id: str, category: str, current_admin=None):
+def update_category(doc_id: str, category: str):
     return get_helper().update_document(doc_id, {"category": category})
 
 

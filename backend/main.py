@@ -2,30 +2,35 @@
 import sys
 import os
 
-# bipthelper backend FIRST so its models/services are found by default
-_bp = os.path.normpath("E:/code/bipthelper/backend").replace("\\", "/")
-if _bp not in [p.replace("\\", "/") for p in sys.path]:
-    sys.path.insert(0, _bp)
-
-# organizer backend SECOND so its local modules (services, database, routers) take precedence
+# organizer backend FIRST — all organizer's own modules (database, routers, services)
 _backend_dir = os.path.normpath(os.path.dirname(os.path.abspath(__file__))).replace("\\", "/")
 if _backend_dir not in [p.replace("\\", "/") for p in sys.path]:
-    sys.path.insert(1, _backend_dir)
+    sys.path.insert(0, _backend_dir)
 
+# bipthelper backend APPENDED — only for explicit bipthelper model imports in routes
+_bp = os.path.normpath("E:/code/bipthelper/backend").replace("\\", "/")
+if _bp not in [p.replace("\\", "/") for p in sys.path]:
+    sys.path.append(_bp)
+
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-# These import from bipthelper (User model, config, etc.)
 from database import get_session, create_db_and_tables
-from models.user import User
 
-# Local routers — their local imports (services.helper_client, etc.) find organizer's local modules
+# Local routers
 from routers.auth import router as auth_router
 from routers.crawl_admin import router as crawl_admin_router
 from routers.organizer_docs import router as organizer_docs_router
 
 
-app = FastAPI(title="BIPTInfoOrganizer")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    create_db_and_tables()
+    yield
+
+
+app = FastAPI(title="BIPTInfoOrganizer", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -47,5 +52,4 @@ def health():
 
 if __name__ == "__main__":
     import uvicorn
-    create_db_and_tables()
     uvicorn.run(app, host="0.0.0.0", port=8001)

@@ -1,10 +1,8 @@
 # backend/routers/crawl_admin.py
 # Crawler config management + crawl status SSE
-# bipthelper backend already in sys.path via main.py setup
 
 import asyncio
 import json
-import threading
 import uuid
 from datetime import datetime, timezone
 from urllib.parse import urlparse
@@ -12,12 +10,10 @@ from urllib.parse import urlparse
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from typing import Optional
-from pydantic import BaseModel
 from sqlmodel import Session, select
 
 from database import get_session
 from models.crawl_config import CrawlConfig
-from models.user import User
 from routers.auth import get_current_admin
 
 router = APIRouter()
@@ -48,6 +44,7 @@ def add_audit_log_local(user_id, username, action, target, detail, session):
     from models.audit_log import AuditLog
     log = AuditLog(
         id=str(uuid.uuid4()),
+        user_id=user_id or "",
         username=username,
         action=action,
         target=target or "",
@@ -66,7 +63,7 @@ crawl_progress = {}
 
 @router.get("/configs")
 def list_configs(
-    current_admin: User = Depends(get_current_admin),
+    current_admin=Depends(get_current_admin),
     session: Session = Depends(get_session),
 ):
     configs = session.exec(select(CrawlConfig)).all()
@@ -108,7 +105,7 @@ def create_config(
     parent_category: Optional[str] = None,
     sub_category: Optional[str] = None,
     auto_interval_hours: int = 0,
-    current_admin: User = Depends(get_current_admin),
+    current_admin=Depends(get_current_admin),
     session: Session = Depends(get_session),
 ):
     _validate_url(url, "列表页URL")
@@ -136,7 +133,7 @@ def create_config(
     )
     session.add(config)
     session.commit()
-    add_audit_log_local(current_admin.id, current_admin.username, "add_config", config.id, f"添加配置: {config.name}", session)
+    add_audit_log_local(current_admin["id"], current_admin["username"], "add_config", config.id, f"添加配置: {config.name}", session)
     return {"id": config.id, "name": config.name, "url": config.url}
 
 
@@ -157,7 +154,7 @@ def update_config(
     parent_category: Optional[str] = None,
     sub_category: Optional[str] = None,
     auto_interval_hours: Optional[int] = None,
-    current_admin: User = Depends(get_current_admin),
+    current_admin=Depends(get_current_admin),
     session: Session = Depends(get_session),
 ):
     config = session.get(CrawlConfig, config_id)
@@ -212,7 +209,7 @@ def update_config(
 @router.delete("/configs/{config_id}")
 def delete_config(
     config_id: str,
-    current_admin: User = Depends(get_current_admin),
+    current_admin=Depends(get_current_admin),
     session: Session = Depends(get_session),
 ):
     config = session.get(CrawlConfig, config_id)
@@ -220,7 +217,7 @@ def delete_config(
         raise HTTPException(status_code=404, detail="Config not found")
     session.delete(config)
     session.commit()
-    add_audit_log_local(current_admin.id, current_admin.username, "delete_config", config_id, f"删除配置: {config.name}", session)
+    add_audit_log_local(current_admin["id"], current_admin["username"], "delete_config", config_id, f"删除配置: {config.name}", session)
     return {"message": "Config deleted"}
 
 
@@ -241,23 +238,23 @@ async def get_crawl_progress():
 @router.post("/crawl/start")
 def start_crawl(
     config_ids: Optional[str] = None,
-    current_admin: User = Depends(get_current_admin),
+    current_admin=Depends(get_current_admin),
     session: Session = Depends(get_session),
 ):
     global crawl_running
     if crawl_running:
         raise HTTPException(status_code=400, detail="Crawl already running")
-    add_audit_log_local(current_admin.id, current_admin.username, "trigger_crawl", None,
+    add_audit_log_local(current_admin["id"], current_admin["username"], "trigger_crawl", None,
                         f"手动触发爬取 {'指定配置' if config_ids else '全部配置'}", session)
     return {"status": "started"}
 
 
 @router.post("/crawl/stop")
 def stop_crawl(
-    current_admin: User = Depends(get_current_admin),
+    current_admin=Depends(get_current_admin),
     session: Session = Depends(get_session),
 ):
+    current_admin  # used
     global crawl_stop_requested
     crawl_stop_requested = True
-    add_audit_log_local(current_admin.id, current_admin.username, "stop_crawl", None, "请求停止爬取", session)
     return {"message": "Stop requested"}
