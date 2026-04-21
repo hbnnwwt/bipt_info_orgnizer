@@ -3,6 +3,7 @@
 
 import asyncio
 import json
+import threading
 import uuid
 from datetime import datetime, timezone
 from urllib.parse import urlparse
@@ -15,6 +16,7 @@ from sqlmodel import Session, select
 from database import get_session
 from models.crawl_config import CrawlConfig
 from routers.auth import get_current_admin
+from org_services.crawler import run_crawl, stop_crawl as stop_crawler, get_crawl_progress, is_crawl_running
 
 router = APIRouter()
 
@@ -55,10 +57,8 @@ def add_audit_log_local(user_id, username, action, target, detail, session):
     session.commit()
 
 
-# --- Crawl state ---
-crawl_running = False
-crawl_stop_requested = False
-crawl_progress = {}
+# --- Crawl state managed by crawler.py ---
+# crawl_running, crawl_stop_requested, crawl_progress live in org_services.crawler
 
 
 @router.get("/configs")
@@ -223,14 +223,14 @@ def delete_config(
 
 @router.get("/crawl/status")
 def get_crawl_status():
-    return {"running": crawl_running, "stop_requested": crawl_stop_requested}
+    return {"running": is_crawl_running()}
 
 
 @router.get("/crawl/progress")
 async def get_crawl_progress():
     async def event_generator():
         while True:
-            yield f"event: progress\ndata: {json.dumps(crawl_progress)}\n\n"
+            yield f"event: progress\ndata: {json.dumps(get_crawl_progress())}\n\n"
             await asyncio.sleep(2)
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
@@ -241,11 +241,11 @@ def start_crawl(
     current_admin=Depends(get_current_admin),
     session: Session = Depends(get_session),
 ):
-    global crawl_running
-    if crawl_running:
+    if is_crawl_running():
         raise HTTPException(status_code=400, detail="Crawl already running")
     add_audit_log_local(current_admin["id"], current_admin["username"], "trigger_crawl", None,
                         f"手动触发爬取 {'指定配置' if config_ids else '全部配置'}", session)
+    threading.Thread(target=run_crawl, args=(config_ids,), daemon=True).start()
     return {"status": "started"}
 
 
@@ -255,6 +255,5 @@ def stop_crawl(
     session: Session = Depends(get_session),
 ):
     current_admin  # used
-    global crawl_stop_requested
-    crawl_stop_requested = True
+    stop_crawler()
     return {"message": "Stop requested"}
