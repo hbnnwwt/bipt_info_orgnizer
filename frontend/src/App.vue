@@ -53,6 +53,7 @@ onMounted(() => {
   --color-danger-bg: #fee2e2;
   --color-danger-text: #991b1b;
   --color-error: #dc2626;
+  --color-error-rgb: 220, 38, 38;
   --color-error-hover: #b91c1c;
 
   /* Neutrals — cool gray, consistent hue */

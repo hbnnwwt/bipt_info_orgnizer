@@ -224,7 +224,7 @@ async function handleLogin() {
 .alert-error {
   background: var(--color-danger-bg);
   color: var(--color-danger-text);
-  border: 1px solid rgba(220,38,38,0.15);
+  border: 1px solid rgba(var(--color-error-rgb), 0.15);
 }
 
 .btn-primary {
