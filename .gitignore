@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+
+# Node
+node_modules/
+package-lock.json
+
+# Build
+frontend/dist/
+backend/assets/
+
+# Environment
+.env
+.env.local
+*.log
+backend_err.txt
+
+# Local data
+data/
+vendor/python
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Playwright
+.playwright-mcp/
+
+# Local scripts
+build.bat
+setup.bat
