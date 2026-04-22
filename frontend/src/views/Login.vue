@@ -108,7 +108,7 @@ async function handleLogin() {
     params.append('password', form.password)
     const { data } = await api.post('/auth/login', params)
     authStore.setAuth(data.token, data.user)
-    router.push('/')
+    window.location.href = '/'
   } catch (e) {
     error.value = e.response?.data?.detail || '登录失败，请检查用户名和密码'
   } finally {

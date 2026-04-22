@@ -153,7 +153,7 @@ async function handleRegister() {
   try {
     const { data } = await api.post('/auth/register', form)
     authStore.setAuth(data.token, data.user)
-    router.push('/')
+    window.location.href = '/'
   } catch (e) {
     error.value = e.response?.data?.detail || '注册失败，请检查邀请码是否正确'
   } finally {

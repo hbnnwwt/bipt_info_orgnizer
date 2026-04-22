@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { useAuthStore } from './stores/auth'
 
 const routes = [
   { path: '/login', name: 'Login', component: () => import('./views/Login.vue') },
@@ -16,11 +17,9 @@ const router = createRouter({
   routes
 })
 
-let synced = false
-
 router.beforeEach(async (to, from, next) => {
-  const token = sessionStorage.getItem('token')
-  const isLoggedIn = !!token
+  const authStore = useAuthStore()
+  const isLoggedIn = authStore.isLoggedIn
 
   if (to.meta.requiresAuth && !isLoggedIn) {
     next('/login')
