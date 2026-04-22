@@ -51,7 +51,7 @@
           {{ error }}
         </div>
 
-        <button type="submit" :disabled="loading" class="btn-primary">
+        <button type="submit" :disabled="loading" class="btn-primary" :aria-busy="loading ? 'true' : undefined">
           <span v-if="loading" class="spinner" aria-hidden="true"></span>
           {{ loading ? '登录中...' : '登录' }}
         </button>
@@ -126,15 +126,14 @@ async function handleLogin() {
   justify-content: center;
   padding: var(--space-4);
   background: var(--color-surface);
-  /* Subtle geometric background pattern */
   background-image:
-    radial-gradient(circle at 20% 20%, rgba(37,99,235,0.04) 0%, transparent 50%),
-    radial-gradient(circle at 80% 80%, rgba(37,99,235,0.03) 0%, transparent 50%);
+    radial-gradient(circle at 20% 20%, rgba(var(--color-primary-rgb), 0.04) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(var(--color-primary-rgb), 0.03) 0%, transparent 50%);
 }
 
 .brand-mark {
   margin-bottom: var(--space-6);
-  filter: drop-shadow(0 4px 12px rgba(37,99,235,0.25));
+  filter: drop-shadow(0 4px 12px rgba(var(--color-primary-rgb), 0.25));
 }
 
 .login-card {
@@ -187,7 +186,6 @@ async function handleLogin() {
   color: var(--color-text);
   background: var(--color-bg);
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
-  /* Remove browser defaults */
   appearance: none;
   -webkit-appearance: none;
 }
@@ -199,7 +197,7 @@ async function handleLogin() {
 .field input:focus {
   outline: none;
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(37,99,235,0.12);
+  box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.12);
 }
 
 .field input.error {
@@ -244,12 +242,12 @@ async function handleLogin() {
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  box-shadow: 0 1px 2px rgba(37,99,235,0.20);
+  box-shadow: 0 1px 2px rgba(var(--color-primary-rgb), 0.20);
 }
 
 .btn-primary:hover:not(:disabled) {
   background: var(--color-primary-hover);
-  box-shadow: 0 4px 8px rgba(37,99,235,0.25);
+  box-shadow: 0 4px 8px rgba(var(--color-primary-rgb), 0.25);
 }
 
 .btn-primary:active:not(:disabled) {

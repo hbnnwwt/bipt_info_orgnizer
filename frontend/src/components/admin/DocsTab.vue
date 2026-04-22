@@ -323,7 +323,7 @@ function toggleSelectAllDocs() {
 }
 .filter-input:focus {
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(37,99,235,0.10);
+  box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.10);
 }
 .filter-input::placeholder { color: var(--color-text-faint); }
 
@@ -488,5 +488,9 @@ function toggleSelectAllDocs() {
   .filter-input { width: 100%; }
   .data-table { display: block; overflow-x: auto; }
   .cell-url { max-width: 160px; }
+  /* Touch targets: ensure checkboxes and action buttons meet 44px min */
+  .data-table input[type="checkbox"] { min-width: 44px; min-height: 44px; }
+  .cell-actions { min-height: 44px; }
+  .btn-ghost-xs { min-height: 44px; min-width: 44px; }
 }
 </style>

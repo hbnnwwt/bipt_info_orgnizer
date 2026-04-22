@@ -37,11 +37,10 @@ onMounted(() => {
 
 :root {
   /* Brand */
-  --color-primary: #2563eb;
+--color-primary: #2563eb;
+  --color-primary-rgb: 37, 99, 235;
   --color-primary-hover: #1d4ed8;
   --color-primary-active: #1e40af;
-  --color-primary-muted: #dbeafe;
-  --color-primary-text: #1e40af;
 
   /* Semantic */
   --color-success: #22c55e;

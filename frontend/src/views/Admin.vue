@@ -20,12 +20,14 @@
     </header>
 
     <!-- ── Tab bar ── -->
-    <nav class="tabbar" role="tablist">
+    <nav class="tabbar" role="tablist" aria-label="管理标签页">
       <button
         v-for="t in tabs"
         :key="t.key"
+        :id="'tab-' + t.key"
         role="tab"
         :aria-selected="tab === t.key"
+        :aria-controls="'panel-' + t.key"
         :class="{ active: tab === t.key }"
         @click="switchTab(t.key)"
       >{{ t.label }}</button>
@@ -33,14 +35,22 @@
 
     <!-- ── Tab content ── -->
     <main class="content">
-      <component :is="currentTabComponent" :tab="tab" />
+      <div
+        v-for="t in tabs"
+        :key="t.key"
+        :id="'panel-' + t.key"
+        :aria-labelledby="'tab-' + t.key"
+        role="tabpanel"
+        v-show="tab === t.key"
+      >
+        <component :is="tabComponents[t.key]" :tab="tab" />
+      </div>
     </main>
   </div>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
 import CrawlerTab from '../components/admin/CrawlerTab.vue'
 import DocsTab from '../components/admin/DocsTab.vue'
 import AuditTab from '../components/admin/AuditTab.vue'
@@ -57,8 +67,6 @@ const tabComponents = {
   docs: DocsTab,
   audit: AuditTab,
 }
-const currentTabComponent = computed(() => tabComponents[tab.value])
-const router = useRouter()
 
 const username = ref(sessionStorage.getItem('username') || 'Admin')
 

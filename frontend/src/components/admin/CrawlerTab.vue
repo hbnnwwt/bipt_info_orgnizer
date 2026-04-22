@@ -602,6 +602,11 @@ watch(() => props.tab, (newTab) => {
 .badge-running .badge-dot {
   animation: badge-pulse 1.5s ease-in-out infinite;
 }
+@media (prefers-reduced-motion: reduce) {
+  .badge-running .badge-dot {
+    animation: none;
+  }
+}
 @keyframes badge-pulse {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.5; transform: scale(0.85); }
@@ -977,6 +982,10 @@ watch(() => props.tab, (newTab) => {
   .cell-url { max-width: 180px; }
   .crawl-overall-progress { min-width: 0; width: 100%; }
   .cell-progress { min-width: 120px; }
+  /* Touch targets: ensure checkboxes and action buttons meet 44px min */
+  .data-table input[type="checkbox"] { min-width: 44px; min-height: 44px; }
+  .cell-actions { min-height: 44px; }
+  .btn-ghost-xs { min-height: 44px; min-width: 44px; }
 }
 
 /* ── Modal ── */

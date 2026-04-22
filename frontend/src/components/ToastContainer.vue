@@ -95,6 +95,13 @@ function toastIcon(type) {
   opacity: 1;
 }
 
+.toast-close:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+  opacity: 1;
+}
+
 /* Transition */
 .toast-enter-active,
 .toast-leave-active {

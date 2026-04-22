@@ -90,5 +90,6 @@ watch(() => props.tab, (newTab) => {
 </script>
 
 <style scoped>
+@import '../../assets/admin-shared.css';
 .audit-tab { display: flex; flex-direction: column; gap: var(--space-4); }
 </style>
