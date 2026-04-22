@@ -54,7 +54,7 @@ powershell -ExecutionPolicy Bypass -File "%~dp0kill8001.ps1"
 REM Start backend (port 8001)
 echo [Starting] Organizer backend on port 8001...
 cd backend
-start "BIPT-Organizer" "%PYTHON_EXE%" main.py
+start "BIPT-Organizer" cmd /c "%PYTHON_EXE% main.py 2> ..\backend_err.txt"
 
 timeout /t 3 /nobreak >nul
 

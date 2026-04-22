@@ -15,6 +15,8 @@ if _bp not in [p.replace("\\", "/") for p in sys.path]:
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 from database import get_session, create_db_and_tables
 
@@ -48,6 +50,20 @@ app.include_router(organizer_docs_router, prefix="/api", tags=["documents"])
 @app.get("/api/health")
 def health():
     return {"status": "ok", "service": "organizer"}
+
+
+# Serve frontend SPA
+_frontend_dir = os.path.join(_backend_dir, "assets", "frontend")
+if os.path.isdir(_frontend_dir):
+    app.mount("/assets", StaticFiles(directory=os.path.join(_frontend_dir, "assets")), name="frontend-assets")
+
+    @app.get("/{path:path}")
+    async def serve_spa(path: str):
+        """Catch-all: serve frontend SPA, fall back to index.html for client-side routing."""
+        file_path = os.path.join(_frontend_dir, path)
+        if path and os.path.isfile(file_path):
+            return FileResponse(file_path)
+        return FileResponse(os.path.join(_frontend_dir, "index.html"))
 
 
 if __name__ == "__main__":
